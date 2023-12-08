@@ -1,0 +1,3 @@
+[submodule "cub2011_dataset"]
+	path = cub2011_dataset
+	url = https://github.com/TDeVries/cub2011_dataset.git
