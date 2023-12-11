@@ -1,2 +1,4 @@
 .gitmodules
+__pycache__
 CUB_200_2011
+src/single_module_results
