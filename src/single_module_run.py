@@ -40,7 +40,7 @@ def single_module_run():
     # load the model & register the hook at the last layer before classification
     resnet = models.resnet152(weights='ResNet152_Weights.DEFAULT', progress=True)
     resnet.eval()
-    extractor = SaveFeatures(resnet, ['avgpool'])
+    extractor = SaveFeatures(resnet, layers_id=['avgpool'])
 
     with torch.no_grad():
         for batch, training_target in tqdm(tr_loader):
@@ -50,7 +50,6 @@ def single_module_run():
         for batch, test_target in tqdm(test_loader):
             features = extractor(batch)
         test_features = torch.squeeze(features['avgpool'])
-
 
 
     # grid search on the knn
