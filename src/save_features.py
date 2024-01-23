@@ -4,7 +4,7 @@ from torch import nn
 
 # You can either pass a list of layers_id, i.e. the names of layers in model
 # Or a list of (layer_id, layer) tuples
-class SaveFeatures(nn.Module):
+class Extractor(nn.Module):
     def __init__(self, model, layers_id=None, layers=None):
         super().__init__()
         self.model = model
@@ -30,5 +30,5 @@ class SaveFeatures(nn.Module):
 
     def save_hook(self, l_id):
         def hook(model, input, output):
-            self.features[l_id] = output
+            self.features[l_id] = output.detach().cpu()
         return hook

@@ -32,8 +32,8 @@ def load_cub(batch_size):
     cub_training = CUB200(root='/home/lquarantiello/compCV', transform=preprocessing, download=False)
     cub_test = CUB200(root='/home/lquarantiello/compCV', transform=preprocessing, train=False, download=False)
 
-    #cub_training = Subset(cub_training, torch.arange(0,30))
-    #cub_test = Subset(cub_test, torch.arange(0,20))
+    #cub_training = Subset(cub_training, torch.arange(0,60))
+    #cub_test = Subset(cub_test, torch.arange(0,40))
 
     tr_loader = DataLoader(cub_training, batch_size=batch_size)
     test_loader = DataLoader(cub_test, batch_size=batch_size)
