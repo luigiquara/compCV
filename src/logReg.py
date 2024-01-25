@@ -9,43 +9,6 @@ from utils import load_cub, get_model
 from features_extraction import forward_pass_extraction, pooling_and_concat
 
 
-'''
-# take a given number of subtrees
-# put a logistic regressor on top to classify
-# the maximum number of modules is 17 in resnet50
-def logReg(model):
-    device = torch.device('cuda')
-    resnet = get_model(model)
-    tr_loader, test_loader = load_cub(batch_size=32)
-    tr_features, test_features = extract_features(resnet, tr_loader, test_loader, device)
-
-    for n_modules in range(17, 0, -1):
-        # select a number of modules, i.e. relu layers 
-        print(f'Using {n_modules} modules')
-        modules = list(tr_features.keys())[:n_modules]
-        
-        # TODO: this is wrong! you have to take both pooling methods and the targets
-        partial_tr_features = {layer: tr_features[layer] for layer in modules}
-        partial_test_features = {layer: test_features[layer] for layer in modules}
-        acc = {'avg_pool': 0, 'max_pool': 0}
-
-        for pooling_method in ['avg_pool', 'max_pool']:
-            classifier = LogisticRegression(max_iter=400, n_jobs=-1)
-            classifier.fit(partial_tr_features[pooling_method].numpy(), partial_tr_features['target'])
-            print('Fitted')
-
-            acc[pooling_method] = classifier.score(partial_test_features[pooling_method].numpy(), partial_test_features['target'])
-            print('Score computed')
-            print(f'acc: {acc}')
-
-        wandb.log({'accuracy_avg_pool': acc['avg_pool'], 'accuracy_max_pool': acc['max_pool'], 'n_modules': n_modules})
-
-    wandb.config.update({
-        'model': model,
-        'batch_size': 32
-    })
-'''
-
 # take a given number of subtrees
 # put a logistic regressor on top to classify
 # the maximum number of modules is 17 in resnet50
