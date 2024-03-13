@@ -1,0 +1,24 @@
+resnet50 pretrained on imagenet
+Using logistic_regression
+Accuracy on oxford102flowers: 0.8160676532769556
+
+resnet50 pretrained on imagenet
+Using logistic_regression
+Accuracy on inaturalist: 0.35
+
+resnet50 pretrained on cifar10
+Using logistic_regression
+Accuracy on oxford102flowers: 0.1897869572288177
+
+resnet50 pretrained on cifar10
+Using logistic_regression
+Accuracy on inaturalist: 0.041176470588235294
+
+resnet50 pretrained on cifar100
+Using logistic_regression
+Accuracy on oxford102flowers: 0.43812001951536833
+
+resnet50 pretrained on cifar100
+Using logistic_regression
+Accuracy on inaturalist: 0.06529411764705882
+
