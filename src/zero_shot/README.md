@@ -1,8 +1,14 @@
 # Testing Zero-Shot Capabilities
 
 In the context of image classification tasks, we want to test the zero-shot capabilities of different pretrained models on a set of downstream tasks.
-At the moment, the architecture used is the ResNet50, pretrained on ImageNet, CIFAR10 and CIFAR100.
+At the moment, the architecture used is the ResNet50, pretrained on ImageNet, COCO, CIFAR10 and CIFAR100.
 Currently, these models are tested on StanfordCars, Oxford102Flowers and INaturalist2021.
+
+## Noted on the Models
+### ResNet50 - COCO
+We were not able to find online a ResNet50 architecture trained on COCO dataset.
+We decided to take the FasterRCNN model, pretrained on COCO, extract the ResNet backbone and use it for the successive experiments.<br/>
+The instructions we followed to extract the ResNet from the FasterRCNN model are available at: https://discuss.pytorch.org/t/feature-extracting-from-resnet-pretrained-on-coco/82010/3
 
 ## Notes on the Datasets
 ### StanfordCars
@@ -22,6 +28,7 @@ We used a LogisticRegression model, to keep it simple and to test directly the f
 For our experiments, we fixed *max_iter* = 400, that we found to be a good trade-off between accuracy and time complexity.
 
 ## Results
+### Single-Model
 Here, the results obtained.
 On the rows, we put the different models we tested, on the columns the downstream tasks.
 The results displayed here are the values of the accuracy on the test set of the respective tasks.
@@ -29,6 +36,7 @@ The results displayed here are the values of the accuracy on the test set of the
 |                     | StanfordCars | Oxford102Flowers | INat21 |
 |---------------------|--------------|------------------|--------|
 | ResNet50 - ImageNet | 54%          | 82%              | 35%    |
+| ResNet50 - COCO     | 40%          | 71%              | 20%    |
 | ResNet50 - CIFAR100 | 9%           | 44%              | 7%     |
 | ResNet50 - CIFAR10  | 5%           | 19%              | 5%     |
 
@@ -37,7 +45,7 @@ Models pretrained on CIFAR10/100 are not good enough - 32x32 images are too smal
 The Flowers dataset seems a little simpler - probably in ImageNet there are several images of flowers.
 
 **TODO**:
-+ Use ResNet pretrained on big datasets, *e.g.* COCO.
++ Check perfomance of fine-tuned models on downstream tasks
 + Use another architecture, *e.g.* ViT
 + Split ImageNet in half, train a model on each half and use these two as *backbones*.
-
++ Use two backbones, *e.g.* ResNet-ImageNet & ResNet-COCO, with a single classifier for each downstream task.
