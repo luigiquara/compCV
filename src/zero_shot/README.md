@@ -36,8 +36,8 @@ The results displayed here are the values of the accuracy on the test set of the
 Models pretrained on CIFAR10/100 are not good enough - 32x32 images are too small for the training.
 The Flowers dataset seems a little simpler - probably in ImageNet there are several images of flowers.
 
-TODO:
-Use ResNet pretrained on big datasets, *e.g.* COCO.
-Use another architecture, *e.g.* ViT
-Split ImageNet in half, train a model on each half and use these two as *backbones*.
+**TODO**:
++ Use ResNet pretrained on big datasets, *e.g.* COCO.
++ Use another architecture, *e.g.* ViT
++ Split ImageNet in half, train a model on each half and use these two as *backbones*.
 
