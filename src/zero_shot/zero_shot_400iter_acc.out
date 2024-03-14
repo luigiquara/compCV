@@ -42,3 +42,7 @@ resnet50 pretrained on coco
 Using logistic_regression
 Accuracy on stanford_cars: 0.40281059569705263
 
+resnet50 pretrained on coco
+Using logistic_regression
+Accuracy on inaturalist: 0.2011764705882353
+
