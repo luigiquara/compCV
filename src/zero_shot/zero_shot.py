@@ -7,6 +7,7 @@ Currently supporting:
 """
 
 import argparse
+import copy
 import numpy as np
 from tqdm import tqdm
 
@@ -16,11 +17,73 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 import timm
 import torch
+from torch import nn
 from torch.utils.data import DataLoader
+import torchvision
 from torchvision import transforms
 from torchvision.datasets import Flowers102, INaturalist, ImageFolder, StanfordCars
+from torchvision.models import resnet50
+from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
 from transformers import ResNetModel 
 from transformers.modeling_outputs import BaseModelOutputWithPoolingAndNoAttention
+
+def _from_fasterrcnn_to_resnet():
+    '''Extract the ResNet backbone from FasterRCNN
+
+    Online, there is plain ResNet50 model pretrained on COCO dataset.
+    There is a FasterRCNN model trained on COCO, which has a ResNet backbone and some additional layers.
+    This method is to extract the ResNet backbone and use it for classification.
+    Taken from https://discuss.pytorch.org/t/feature-extracting-from-resnet-pretrained-on-coco/82010/3.
+
+    Returns
+    -------
+    model : torchvision.models.resnet.ResNet
+        The ResNet backbone extracted from FasterRCNN model trained on COCO
+    '''
+
+    model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.COCO_V1)
+    resnet = model.backbone.body
+
+    # Check for all FrozenBN layers
+    bn_to_replace = []
+    for name, module in resnet.named_modules():
+        if isinstance(module, torchvision.ops.misc.FrozenBatchNorm2d):
+            #print('adding ', name)
+            bn_to_replace.append(name)
+
+    # Iterate all layers to change
+    for layer_name in bn_to_replace:
+        # Check if name is nested
+        *parent, child = layer_name.split('.')
+        # Nested
+        if len(parent) > 0:
+            # Get parent modules
+            m = resnet.__getattr__(parent[0])
+            for p in parent[1:]:    
+                m = m.__getattr__(p)
+            # Get the FrozenBN layer
+            orig_layer = m.__getattr__(child)
+        else:
+            m = resnet.__getattr__(child)
+            orig_layer = copy.deepcopy(m) # deepcopy, otherwise you'll get an infinite recursion
+        # Add your layer here
+        in_channels = orig_layer.weight.shape[0]
+        bn = nn.BatchNorm2d(in_channels)
+        with torch.no_grad():
+            bn.weight = nn.Parameter(orig_layer.weight)
+            bn.bias = nn.Parameter(orig_layer.bias)
+            bn.running_mean = orig_layer.running_mean
+            bn.running_var = orig_layer.running_var
+        m.__setattr__(child, bn)
+
+    # Fix the bn1 module to load the state_dict
+    resnet.bn1 = resnet.bn1.bn1
+
+    # Create reference model and load state_dict
+    reference = resnet50()
+    reference.load_state_dict(resnet.state_dict(), strict=False)
+
+    return reference
 
 def get_model(model_name, pretraining_set):
     '''Get a pretrained model, given its name and the wanted pretraining dataset
@@ -51,21 +114,34 @@ def get_model(model_name, pretraining_set):
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
+
     elif pretraining_set == 'cifar10':
         complete_model = timm.create_model('resnet50_cifar10', pretrained=True)
 
+        # from timm model.pretraining_cfg
         preprocess = transforms.Compose([
             transforms.Resize((32, 32)),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2023, 0.1994, 0.201])
         ])
+
     elif pretraining_set == 'cifar100':
         complete_model = timm.create_model('resnet50_cifar100', pretrained=True)
 
+        # from timm model.pretraining_cfg
         preprocess = transforms.Compose([
             transforms.Resize((32, 32)),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
+        ])
+
+    elif pretraining_set == 'coco':
+        complete_model = _from_fasterrcnn_to_resnet()
+
+        preprocess = transforms.Compose([
+            transforms.Resize((640, 480)), #median image size in COCO
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
     else:
         # TODO: raise exception
@@ -162,8 +238,9 @@ def forward_pass(model, dataloader):
             mb = mb.cuda()
             t = t.cuda()
 
-            out = model(mb)
+            out = model(mb).squeeze()
             
+            # depending on the model in use
             if isinstance(out, torch.Tensor):
                 features.append(out.numpy(force=True))
             elif isinstance(out, BaseModelOutputWithPoolingAndNoAttention):

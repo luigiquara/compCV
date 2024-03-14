@@ -34,3 +34,11 @@ resnet50 pretrained on cifar100
 Using logistic_regression
 Accuracy on stanford_cars: 0.09177962939932845
 
+resnet50 pretrained on coco
+Using logistic_regression
+Accuracy on oxford102flowers: 0.7131240852171085
+
+resnet50 pretrained on coco
+Using logistic_regression
+Accuracy on stanford_cars: 0.40281059569705263
+
