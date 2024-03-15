@@ -137,12 +137,34 @@ def get_model(model_name, pretraining_set):
 
     elif pretraining_set == 'coco':
         complete_model = _from_fasterrcnn_to_resnet()
+        preproc = 3
 
-        preprocess = transforms.Compose([
-            transforms.Resize((640, 480)), #median image size in COCO
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
+        if preproc == 1:
+            print('Resize to median COCO images size')
+            # resize to median size of COCO images
+            preprocess = transforms.Compose([
+                transforms.Resize((640, 480)), #median image size in COCO
+                transforms.ToTensor()
+            ])
+
+        if preproc == 2:
+            print('Normalization only')
+            # normalization from imagenet model
+            preprocess = transforms.Compose([
+                transforms.Resize((640, 480)), #median image size in COCO
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ])
+
+        if preproc == 3:
+            print('Complete ImageNet Preprocessing')
+            # complete imagenet model preprocessing
+            preprocess = transforms.Compose([
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ])
     else:
         # TODO: raise exception
         pass
@@ -253,7 +275,7 @@ def forward_pass(model, dataloader):
 
     return features, target
 
-def main(model_name, pretraining_set, task_dataset, head, log_file):
+def single_model_zero_shot(model_name, pretraining_set, task_dataset, head, log_file):
     model, processor = get_model(model_name, pretraining_set)
     tr_loader, test_loader = get_dataset(task_dataset, processor)
     classifier = get_classifier(head)
@@ -273,15 +295,58 @@ def main(model_name, pretraining_set, task_dataset, head, log_file):
     with open(log_file, 'a') as fp:
         fp.write(f'{model_name} pretrained on {pretraining_set}\nUsing {head}\nAccuracy on {task_dataset}: {acc}\n\n')
 
+def multi_model_zero_shot(models_name, pretraining_sets, task_dataset, head, log_file):
+    print(f'Downstream task is {task_dataset}')
+    models, processors = [], []
+    for idx, model_name in enumerate(models_name):
+        m, p = get_model(model_name, pretraining_sets[idx])
+        models.append(m)
+        processors.append(p)
+
+    tr_loaders, test_loaders = [], []
+    for p in processors:
+        tr_l, test_l = get_dataset(task_dataset, p)
+        tr_loaders.append(tr_l)
+        test_loaders.append(test_l)
+
+    # training the classification head
+    tr_features = []
+    for idx, m in enumerate(models):
+        print(f'{models_name[idx]} - {pretraining_sets[idx]}: forward pass on training set')
+        tr_f, tr_target = forward_pass(m, tr_loaders[idx])
+        tr_features.append(tr_f)
+    tr_features = np.concatenate(tr_features, axis=1)
+
+    print('Fitting the classifier')
+    classifier = get_classifier(head)
+    classifier.fit(tr_features, tr_target)
+
+    # evaluation on the test set
+    test_features = []
+    for idx, m in enumerate(models):
+        print(f'{models_name[idx]} - {pretraining_sets[idx]}: forward pass on test set')
+        test_f, test_target = forward_pass(m, test_loaders[idx])
+        test_features.append(test_f)
+    test_features = np.concatenate(test_features, axis=1)
+
+    acc = classifier.score(test_features, test_target)
+    print(acc)
+
+    # logging
+    with open(log_file, 'a') as fp:
+        for idx, m in enumerate(models_name):
+            fp.write(f'{m} pretrained on {pretraining_sets[idx]}\n')
+        fp.write(f'Using {head}\n Accuracy on {task_dataset}: {acc}\n\n')
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--model_name',
-        type=str
+        nargs='+'
     )
     parser.add_argument(
         '--pretraining_set',
-        type=str,
+        nargs='+'
     )
     parser.add_argument(
         '--task_dataset',
@@ -293,10 +358,42 @@ if __name__ == "__main__":
         help='The type of classification head to use'
     )
     parser.add_argument(
+        '--single_model',
+        action='store_true'
+    )
+    parser.add_argument(
+        '--multi_model',
+        dest='single_model',
+        action='store_false'
+    )
+    parser.add_argument(
         '--log_file',
         type=str,
         help='The filepath where to save results'
     )
 
     args = parser.parse_args()
-    main(**vars(args))
+    single_model = args.single_model
+    delattr(args, 'single_model')
+
+    if single_model:
+        # those are lists, but in single_model case there is just one element
+        # get the only element of the list, to pass it as an int
+        model_name = args.model_name[0]
+        pretraining_set = args.pretraining_set[0]
+        delattr(args, 'model_name')
+        delattr(args, 'pretraining_set')
+
+        print('Single Model Zero-Shot Testing')
+        single_model_zero_shot(model_name, pretraining_set, **vars(args))
+
+    else:
+        # using plural names in the multi model case
+        # just mapping between the singular and plural of the names
+        models_name = args.model_name
+        pretraining_sets = args.pretraining_set
+        delattr(args, 'model_name')
+        delattr(args, 'pretraining_set')
+
+        print('Multi Model Zero-Shot Testing')
+        multi_model_zero_shot(models_name, pretraining_sets, **vars(args))
