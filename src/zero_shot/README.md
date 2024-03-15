@@ -4,19 +4,22 @@ In the context of image classification tasks, we want to test the zero-shot capa
 At the moment, the architecture used is the ResNet50, pretrained on ImageNet, COCO, CIFAR10 and CIFAR100.
 Currently, these models are tested on StanfordCars, Oxford102Flowers and INaturalist2021.
 
+As an upperbound, we report also the results of finetuned models on these downstream dataset.
+Those are taken from online repositories, that we cite in the results table.
+
 ## Noted on the Models
 ### ResNet50 - COCO
 We were not able to find online a ResNet50 architecture trained on COCO dataset.
-We decided to take the FasterRCNN model, pretrained on COCO, extract the ResNet backbone and use it for the successive experiments.<br/>
-The instructions we followed to extract the ResNet from the FasterRCNN model are available at: https://discuss.pytorch.org/t/feature-extracting-from-resnet-pretrained-on-coco/82010/3
+We decided to take the FasterRCNN model from PyTorch, pretrained on COCO, extract the ResNet backbone and use it for the successive experiments.<br/>
+The instructions we followed to extract the ResNet from the FasterRCNN model are available [here](https://discuss.pytorch.org/t/feature-extracting-from-resnet-pretrained-on-coco/82010/3).
 
 ## Notes on the Datasets
 ### StanfordCars
-StanfordCars is currently not availble at its homepage: https://ai.stanford.edu/~jkrause/cars/car_dataset.html
-We downloaded it from Kaggle, following the procedure explained in https://github.com/pytorch/vision/issues/7545#issuecomment-1631441616. Thank you @thefirebanks for providing those helpful instructions.
+StanfordCars is currently not availble at its [homepage](https://ai.stanford.edu/~jkrause/cars/car_dataset.html).
+Therefore, we downloaded it from Kaggle, following the procedure explained [here](https://github.com/pytorch/vision/issues/7545#issuecomment-1631441616).
 
 ### INaturalist 2021
-The INaturalist 2021 (https://github.com/visipedia/inat_comp/tree/master/2021) contains about 2.7M images of animals, plants, ecc.
+[The INaturalist 2021](https://github.com/visipedia/inat_comp/tree/master/2021) dataset contains about 2.7M images of animals, plants, ecc.
 The task in our case was to predict the *full* target, *i.e.* the species.
 
 Since the dataset is too big (and it would take hours to perform a forward pass), we decided to use a subset of the images, keeping the ones tagged as *Amphibia*.
@@ -35,6 +38,7 @@ The results displayed here are the values of the accuracy on the test set of the
 
 |                     | StanfordCars | Oxford102Flowers | INat21 |
 |---------------------|--------------|------------------|--------|
+| ResNet50 - Finetuned| [86%](https://medium.com/swlh/car-classification-with-resnet-50-4793d3fe29ea), [90%](https://github.com/eqy/PyTorch-Stanford-Cars-Baselines) | [98%](https://paperswithcode.com/sota/image-classification-on-flowers-102)|  |
 | ResNet50 - ImageNet | 54%          | 82%              | 35%    |
 | ResNet50 - COCO     | 40%          | 71%              | 20%    |
 | ResNet50 - CIFAR100 | 9%           | 44%              | 7%     |
