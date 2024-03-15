@@ -44,6 +44,14 @@ The results displayed here are the values of the accuracy on the test set of the
 | ResNet50 - CIFAR100 | 9%           | 44%              | 7%     |
 | ResNet50 - CIFAR10  | 5%           | 19%              | 5%     |
 
+### Multi-Model
+We tested the zero-shot capabilities of combination of pretrained models.<br/>
+Indeed, there is a slight improvement over the single-model approach.
+
+|                            | StanfordCars | Oxford102Flowers | INat21 |
+|----------------------------|--------------|------------------|--------|
+| ResNet50 - ImageNet & COCO | 59%          | 84%              | 36%    |
+
 ## Take-Home Message
 Models pretrained on CIFAR10/100 are not good enough - 32x32 images are too small for the training.
 The Flowers dataset seems a little simpler - probably in ImageNet there are several images of flowers.
