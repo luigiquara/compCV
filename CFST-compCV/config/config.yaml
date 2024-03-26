@@ -1,0 +1,10 @@
+optimizer:
+    lr: 1e-3
+    momentum: 0.9
+    nesterov: True
+
+train:
+    batch_size: 64
+
+model_name: 'resnet18'
+n_experiences: 10
