@@ -6,3 +6,6 @@ src/all_modules_results
 src/wandb
 .idea/
 src/.old
+CFST-compCV/outputs
+CFST-compCV/ds
+CFST-compCV/.old
