@@ -115,13 +115,11 @@ def run(cfg: DictConfig):
 
         # train the model
         early_stopping_cb = EarlyStopping(monitor='val_loss', mode='min', patience=5)
-        checkpoint_cb = ModelCheckpoint(monitor='val_acc', mode='max', save_top_k=1)
+        checkpoint_cb = ModelCheckpoint(monitor='val_acc', mode='max', save_top_k=1, filename='{epoch}-{val_acc:2f}')
         trainer = L.Trainer(callbacks=[early_stopping_cb, checkpoint_cb], logger = wandb_logger)
         trainer.fit(model, train_loader, val_loader)
 
         wandb.finish()
-
-        break
 
 if __name__ == '__main__':
     run()
