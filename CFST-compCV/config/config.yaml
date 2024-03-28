@@ -1,7 +1,5 @@
-optimizer:
-    lr: 1e-3
-    momentum: 0.9
-    nesterov: True
+defaults:
+    - optimizer: ???
 
 train:
     batch_size: 64
