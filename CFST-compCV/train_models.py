@@ -34,7 +34,7 @@ class LResNet(L.LightningModule):
         elif self.optimizer_cfg.name == 'sgd':
             optimizer = SGD(self.resnet.parameters(), lr=self.optimizer_cfg.lr, momentum=self.optimizer_cfg.momentum, nesterov=self.optimizer_cfg.nesterov, weight_decay=self.optimizer_cfg.weight_decay)
         
-        lr_scheduler = CosineAnnealingLR(optimizer, T_max=50)
+        lr_scheduler = CosineAnnealingLR(optimizer, T_max=100, eta_min=1e-6)
 
         return {
             'optimizer': optimizer,
@@ -96,7 +96,7 @@ def run(cfg: DictConfig):
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
-    benchmark = cgqa.continual_training_benchmark(n_experiences=cfg.n_experiences, seed=42, return_task_id=True, dataset_root='/disk3/lquara/', train_transform=tr_preprocess, eval_transform=test_preprocess)
+    benchmark = cgqa.continual_training_benchmark(n_experiences=cfg.n_experiences, seed=1234, return_task_id=True, dataset_root='/disk3/lquara/', train_transform=tr_preprocess, eval_transform=test_preprocess)
 
     # train a different model for each experience
     for exp_id in range(cfg.n_experiences):
@@ -114,7 +114,7 @@ def run(cfg: DictConfig):
         test_loader = DataLoader(benchmark.test_datasets[exp_id], batch_size=cfg.train.batch_size, num_workers=11)
 
         # train the model
-        early_stopping_cb = EarlyStopping(monitor='val_loss', mode='min', patience=5)
+        early_stopping_cb = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.1, patience=5)
         checkpoint_cb = ModelCheckpoint(monitor='val_acc', mode='max', save_top_k=1, filename='{epoch}-{val_acc:2f}')
         trainer = L.Trainer(callbacks=[early_stopping_cb, checkpoint_cb], logger = wandb_logger)
         trainer.fit(model, train_loader, val_loader)
