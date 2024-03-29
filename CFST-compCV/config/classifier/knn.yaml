@@ -1,0 +1,4 @@
+name: 'knn'
+
+n_neighbors: 20
+weights: 'distance'

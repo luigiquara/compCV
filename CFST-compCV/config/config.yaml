@@ -1,5 +1,6 @@
 defaults:
     - optimizer: ???
+    - classifier: ???
 
 train:
     batch_size: 64

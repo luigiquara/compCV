@@ -1,0 +1,3 @@
+name: logreg
+
+max_iter: 300
