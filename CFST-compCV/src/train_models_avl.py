@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 
 from avalanche.evaluation import metrics
 from avalanche.logging import InteractiveLogger, WandBLogger
@@ -23,7 +24,7 @@ def create_strategy(strategy_name, model, optimizer, plugins, evaluator, params:
         strategy = JointTraining(model, optimizer, CrossEntropyLoss(), train_epochs=params.epochs,
                         train_mb_size=params.train_mb_size, eval_mb_size=params.eval_mb_size,
                         device=torch.device(params.device), plugins=plugins, evaluator=evaluator,
-                        eval_every=1, peval_mode='epoch')
+                        eval_every=1)
     elif strategy_name == 'replay':
         strategy = Replay(model, optimizer, CrossEntropyLoss(), train_epochs=params.epochs,
                         train_mb_size=params.train_mb_size, eval_mb_size=params.eval_mb_size,
@@ -55,7 +56,7 @@ def _continual_train(strategy, benchmark):
     return results
 
 def train(strategy, benchmark):
-    if isinstance(strategy, JointTraining): results = _joint_train()
+    if isinstance(strategy, JointTraining): results = _joint_train(strategy, benchmark)
     else: results = _continual_train(strategy, benchmark)
     return results
 
@@ -77,7 +78,7 @@ def run(params):
                     metrics.timing_metrics(epoch=True)]
     loggers = [InteractiveLogger()]
     if params.use_wandb:
-        run_name = params.strategy + '_taskIL' if params.is_taskIL else '_classIL'
+        run_name = params.strategy + '_taskIL' if params.is_taskIL else params.strategy + '_classIL'
         wandb_logger = WandBLogger(project_name='CFST-compCV', run_name=run_name, config={'benchmark':'cgqa'})
         wandb_logger.wandb.watch(model)
         loggers.append(wandb_logger)
@@ -88,7 +89,10 @@ def run(params):
                                evaluator=evaluation_plugin, params=params)
     results = train(strategy, benchmark)
     if params.save_model:
-        torch.save(strategy.model.state_dict(), params.strategy+'_'+datetime.now().strftime('%H%M%S'+'.ckpt'))
+        setting = 'taskIL' if params.is_taskIL else 'classIL'
+        filename = 'ckpt/'+params.strategy+'_'+setting+'_'+datetime.now().strftime('%H%M%S')+'.ckpt'
+        torch.save(strategy.model.state_dict(), filename)
+        print(f'Model saved at {filename}')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -104,7 +108,7 @@ if __name__ == '__main__':
     # strategy arguments
     parser.add_argument('--train_mb_size', type=int, default=100)
     parser.add_argument('--eval_mb_size', type=int, default=50)
-    parser.add_argument('--epochs', default=100, type=int)
+    parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--mem_size', type=int, default=1000)
     parser.add_argument('--device', type=str, default='cuda')
 
