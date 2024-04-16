@@ -59,8 +59,6 @@ def _get_subset_idx(dataset, current_classes_idxs):
     no_cc_idx = random.choices(remaining_idx, k=len(cc_idx))
     return cc_idx + no_cc_idx
 
-
-
 def run(param):
     # load dataset
     e_tr_set = ImageFolder(param.dataset_path+'train/', transform=transform['train'])
