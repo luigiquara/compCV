@@ -56,12 +56,21 @@ def pipeline(file_json: str, save_path: str):
     # it contains the GQA image name, the cropping coords, the label, ...
     # then, go from List[List[Dict]] to List[Dict]
     # each element in img_info is a single object from an image
-    img_info = _flatten([x['objects'] for x in img_info])
+    #img_info = _flatten([x['objects'] for x in img_info])
+
+    names, bbs, labels, filenames = [], [], [], []
+    for comp_img in img_info:
+        filename, bb, label = zip(*[(obj['imageName'], obj['boundingBox'], obj['objName']) for obj in comp_img['objects']])
+
+        names.extend([comp_img['newImageName'].split('/')[-1]]*2)
+        bbs.extend(bb)
+        labels.extend(label)
+        filenames.extend(filename)
 
     # crop the images
     base_path = '/disk3/lquara/GQA/images/'
-    names, bbs, labels = zip(*[(i['imageName'], i['boundingBox'], i['objName']) for i in img_info])
-    gqa_paths = [base_path + name + '.jpg' for name in names]
+    #names, bbs, labels = zip(*[(i['imageName'], i['boundingBox'], i['objName']) for i in img_info])
+    gqa_paths = [base_path + filename + '.jpg' for filename in filenames]
 
     print('Starting the cropping')
     start = time.time()
@@ -80,6 +89,6 @@ if __name__ == '__main__':
     test_json_path = os.path.join(img_path, 'continual', 'test', 'test.json')
     
     base_path = '/disk4/lquarantiello/CR_GQA/'
-    pipeline(tr_json, base_path+'train/')
-    pipeline(val_json, base_path+'val/')
-    pipeline(test_json, base_path+'test/')
+    pipeline(train_json_path, base_path+'train/')
+    pipeline(val_json_path, base_path+'val/')
+    pipeline(test_json_path, base_path+'test/')
