@@ -1,4 +1,5 @@
 import argparse
+from collections import OrderedDict
 from datetime import datetime
 
 from avalanche.evaluation import metrics
@@ -60,10 +61,30 @@ def train(strategy, benchmark):
     else: results = _continual_train(strategy, benchmark)
     return results
 
+def _adjust_state_dict(state_dict_path: str) -> None:
+    '''Adjust the state_dict of pretrained model to be compatible with CGQA API
+
+    In particular, remove the weights of the classifier
+    Go from state_dict to {'state_dict': state_dict}
+    '''
+
+    state_dict = torch.load(state_dict_path)
+
+    del state_dict['fc.weight']
+    del state_dict['fc.bias']
+
+
+    torch.save(OrderedDict([('state_dict', state_dict)]), state_dict_path+'_adjusted')
+
 def run(params):
     # get benchmark and model
     benchmark = cgqa.continual_training_benchmark(n_experiences=10, seed=1234, return_task_id=params.is_taskIL, dataset_root='/disk3/lquara')
-    model = get_resnet(multi_head=params.is_taskIL, initial_out_features=10)
+    
+    # adjust the state_dict to pass from PyTorch resnet18 to CGQA resnet18
+    if params.pretrained:
+        _adjust_state_dict(params.pretrained_model_path)
+        params.pretrained_model_path += '_adjusted'
+    model = get_resnet(multi_head=params.is_taskIL, initial_out_features=10, pretrained=params.pretrained, pretrained_model_path=params.pretrained_model_path)
 
     # define training plugins
     optimizer = Adam(model.parameters(), lr=params.lr)
@@ -79,6 +100,7 @@ def run(params):
     loggers = [InteractiveLogger()]
     if params.use_wandb:
         run_name = params.strategy + '_taskIL' if params.is_taskIL else params.strategy + '_classIL'
+        if params.pretrained: run_name += '_pretrained'
         wandb_logger = WandBLogger(project_name='CFST-compCV', run_name=run_name, config={'benchmark':'cgqa'})
         wandb_logger.wandb.watch(model)
         loggers.append(wandb_logger)
@@ -106,11 +128,17 @@ if __name__ == '__main__':
     parser.add_argument('--no-save_model', action='store_false', dest='save_model')
 
     # strategy arguments
+    parser.add_argument('--no_pretrained', action='store_false', dest='pretrained')
     parser.add_argument('--train_mb_size', type=int, default=100)
     parser.add_argument('--eval_mb_size', type=int, default=50)
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--mem_size', type=int, default=1000)
     parser.add_argument('--device', type=str, default='cuda')
+
+
+    parser.add_argument('--pretrained', action='store_true')
+    parser.add_argument('--pretrained_model_path', type=str, default=None)
+
 
     params = parser.parse_args()
     run(params)
