@@ -4,7 +4,7 @@ from datetime import datetime
 
 from avalanche.evaluation import metrics
 from avalanche.logging import InteractiveLogger, WandBLogger
-from avalanche.training import JointTraining, Naive, Replay
+from avalanche.training import JointTraining, Naive, Replay, GEM, LwF, EWC
 from avalanche.training.plugins import EarlyStoppingPlugin, EvaluationPlugin, LRSchedulerPlugin
 import torch
 from torch.nn import CrossEntropyLoss
@@ -31,6 +31,19 @@ def create_strategy(strategy_name, model, optimizer, plugins, evaluator, params:
                         train_mb_size=params.train_mb_size, eval_mb_size=params.eval_mb_size,
                         mem_size=params.mem_size, device=torch.device(params.device),
                         plugins=plugins, evaluator=evaluator, eval_every=1, peval_mode='epoch')
+    elif strategy_name == 'gem':
+        strategy = GEM(model, optimizer, CrossEntropyLoss(), patterns_per_exp=32,
+                       memory_strength=0.3, train_mb_size=params.train_mb_size, train_epochs=params.epochs, eval_mb_size=params.eval_mb_size, device=torch.device(params.device), plugins=plugins, evaluator=evaluator, eval_every=1, peval_mode='epoch')
+    elif strategy_name == 'lwf':
+        strategy = LwF(model, optimizer, CrossEntropyLoss(), alpha=1, temperature=1,
+                       train_mb_size=params.train_mb_size, train_epochs=params.epochs,
+                       eval_mb_size=params.eval_mb_size, device=torch.device(params.device),
+                       plugins=plugins, evaluator=evaluator, eval_every=1, peval_mode='epoch')
+    elif strategy_name == 'ewc':
+        strategy = EWC(model, optimizer, CrossEntropyLoss(), ewc_lambda=0.1,
+                       train_mb_size=params.train_mb_size, train_epochs=params.epochs,
+                       eval_mb_size=params.eval_mb_size, device=torch.device(params.device),
+                       plugins=plugins, evaluator=evaluator, eval_every=1, peval_mode='epoch')
 
     return strategy
 
