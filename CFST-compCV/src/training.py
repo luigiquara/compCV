@@ -24,7 +24,7 @@ class Trainer:
         self.device = torch.device('cuda') if device=='cuda' and torch.cuda.is_available() else torch.device('cpu')
         self.log = log
 
-        self.stopper = EarlyStopper(patience=3, min_delta=0)
+        self.stopper = EarlyStopper(patience=3, min_delta=1e-4)
         self.saver = Saver(save_path)
 
         print('Initialized trainer')
@@ -54,7 +54,7 @@ class Trainer:
         
         tr_mca = MulticlassAccuracy(num_classes=num_classes, average='macro').to(self.device)
         tr_auroc = MulticlassAUROC(num_classes=num_classes, average='macro').to(self.device)
-        tr_cm = MulticlassConfusionMatrix(num_classes=num_classes).to(self.device)
+        #tr_cm = MulticlassConfusionMatrix(num_classes=num_classes).to(self.device)
         val_mca = MulticlassAccuracy(num_classes=num_classes, average='macro').to(self.device)
         val_auroc = MulticlassAUROC(num_classes=num_classes, average='macro').to(self.device)
         val_cm = MulticlassConfusionMatrix(num_classes=num_classes).to(self.device)
@@ -63,7 +63,7 @@ class Trainer:
             print(f'Epoch {e+1}/{epochs}')
 
             self.model.train()
-            tr_results = self.training_step(tr_loader, [tr_mca, tr_auroc, tr_cm])
+            tr_results = self.training_step(tr_loader, [tr_mca, tr_auroc])#, tr_cm])
             tr_results['epoch'] = e
 
             print(f'Training accuracy: {tr_results["training_accuracy"].item()}')
@@ -97,12 +97,14 @@ class Trainer:
         losses = [] 
         res = {}
 
-        for X, old_y in tqdm(tr_loader):
+        for X, y in tqdm(tr_loader):
             self.optimizer.zero_grad()
 
             X = X.to(self.device)
 
-            y = self.preprocess_labels(old_y)
+            # for 1vsAll classification, if needed
+            if self.current_classes: y = self.preprocess_labels(y)
+
             y = y.to(self.device)
 
             y_pred = self.model(X)
@@ -138,21 +140,13 @@ class Trainer:
             for X, y in tqdm(val_loader):
                 X = X.to(self.device)
 
-                y = self.preprocess_labels(y)
+                # for 1vsAll classification, if needed
+                if self.current_classes: y = self.preprocess_labels(y)
                 y = y.to(self.device)
 
                 y_pred = self.model(X)
                 loss = self.loss_fn(y_pred, y)
                 total_loss += loss.item()
-
-                #logging
-                #if len(mb.shape) != 3: # one-hot encoded input
-                #    mb_labels = torch.argmax(mb, dim=1) # from one-hot encoding to labels
-                #    for m in vl_metrics:
-                #        m.update(logits, mb_labels)
-                #else:
-                #    for m in vl_metrics:
-                #        m.update(logits, mb)
 
                 for m in val_metrics:
                     m.update(y_pred, y)
@@ -165,23 +159,40 @@ class Trainer:
             res['validation_loss'] = total_loss / (len(val_loader.dataset))
         return res 
 
-    def test(self, test_set):
-        self.model.eval()
+    def test(self, test_loader, num_classes):
+        test_mca = MulticlassAccuracy(num_classes=num_classes, average='macro').to(self.device)
+        test_auroc = MulticlassAUROC(num_classes=num_classes, average='macro').to(self.device)
+        test_cm = MulticlassConfusionMatrix(num_classes=num_classes).to(self.device)
 
-        test_results = defaultdict(list)
-        test_mca = MulticlassAccuracy(num_classes=num_classes)
+        test_metrics = [test_mca, test_auroc, test_cm]
 
-        test_loss, test_acc = self.eval_step(test_set, test_mca)
-        test_results['test_loss'].append(test_loss)
-        test_results['test_accuracy'].append(test_acc)
+        with torch.no_grad():
+            total_loss = 0
+            res = {}
+            for m in test_metrics: m.reset()
 
-        return test_results
+            for X, y in tqdm(test_loader):
+                X = X.to(self.device)
 
-    def forward_pass(self, frame):
-        self.model.eval()
-        logits = self.model(frame.to(self.device))
-        return logits
+                # for 1vsAll classification, if needed
+                if self.current_classes: y = self.preprocess_labels(y)
+                y = y.to(self.device)
 
-    def load_model(self, model_weights):
-        self.model.load_state_dict(torch.load(model_weights))
-        self.model.to(self.device)
+                y_pred = self.model(X)
+                loss = self.loss_fn(y_pred, y)
+                total_loss += loss.item()
+
+                for m in test_metrics:
+                    m.update(y_pred, y)
+
+            for m in test_metrics:
+                name = 'test' + str(m).split('(')[0].split('Multiclass')[1].lower()
+                res[name] = m.compute()
+
+            # average of the loss for a single item
+            res['test_loss'] = total_loss / (len(test_loader.dataset))
+
+        if self.log:
+            wandb.log(res)
+
+        return res
